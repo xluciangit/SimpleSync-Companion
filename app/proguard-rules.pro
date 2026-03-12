@@ -1,0 +1,4 @@
+-keep class com.simplesync.companion.data.db.** { *; }
+-keepclassmembers class * extends androidx.room.RoomDatabase { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**

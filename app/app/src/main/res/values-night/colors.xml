@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark — pixel-matched to Simple Sync Server dark theme screenshot -->
+
+    <!-- Primary blue: used for accent text, headings, filled buttons -->
+    <!-- Server uses same #2563EB blue for the "Add" button in dark mode too -->
+    <color name="md_theme_primary">#3B82F6</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <!-- Primary container: the blue-tinted card border/highlight area -->
+    <color name="md_theme_primaryContainer">#1E3A5F</color>
+    <color name="md_theme_onPrimaryContainer">#BFDBFE</color>
+
+    <color name="md_theme_secondary">#94A3B8</color>
+    <color name="md_theme_onSecondary">#13151C</color>
+    <color name="md_theme_secondaryContainer">#1E2130</color>
+    <color name="md_theme_onSecondaryContainer">#E2E8F0</color>
+
+    <!-- Surface: card background — dark blue-navy #1E2130 -->
+    <color name="md_theme_surface">#1E2130</color>
+    <color name="md_theme_onSurface">#E2E8F0</color>
+
+    <!-- Surface variant: inner boxes, code blocks — deeper #171923 -->
+    <color name="md_theme_surfaceVariant">#171923</color>
+    <color name="md_theme_onSurfaceVariant">#94A3B8</color>
+
+    <!-- Background: page background — very dark navy #13151C -->
+    <color name="md_theme_background">#13151C</color>
+    <color name="md_theme_onBackground">#E2E8F0</color>
+
+    <!-- Borders: muted navy #2A2D3E -->
+    <color name="md_theme_outline">#2A2D3E</color>
+    <color name="md_theme_outlineVariant">#232637</color>
+
+    <color name="md_theme_error">#F87171</color>
+    <color name="md_theme_onError">#1A1A1A</color>
+    <color name="md_theme_errorContainer">#3B1212</color>
+
+    <!-- Semantic status colours -->
+    <color name="color_uploading">#3B82F6</color>
+    <color name="color_success">#4ADE80</color>
+    <color name="color_warning">#FBBF24</color>
+</resources>

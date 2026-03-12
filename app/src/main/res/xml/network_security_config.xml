@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext (HTTP) is allowed for:
+    - Private/LAN ranges (192.168.x.x, 10.x.x.x, 172.16.x.x)
+    - localhost
+  All other traffic (including public static IPs on http://) is handled
+  by the base-config which permits cleartext so that direct IP:port uploads
+  work even on public IPs. HTTPS is always preferred where available.
+
+  Note: The Cloudflare tunnel always uses HTTPS — this only affects the
+  direct IP:port path used for large file uploads.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
