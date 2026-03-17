@@ -20,7 +20,7 @@ Android companion app for [SimpleSync Server](https://github.com/xluciangit/Simp
 | ![Add folder dark](screenshots/add_folder_dark.png) | ![Add folder light](screenshots/add_folder_light.png) |
 | ![Upload1 dark](screenshots/upload1_dark.png) | ![Upload1 light](screenshots/upload1_light.png) |
 | ![Upload2 dark](screenshots/upload2_dark.png) | ![Upload2 light](screenshots/upload2_light.png) |
-| ![Upload3 dark](screenshots/upload3_dark.png) | ![Upload3 light](screenshots/upload2_light.png) |
+| ![Upload3 dark](screenshots/upload3_dark.png) | ![Upload3 light](screenshots/upload3_light.png) |
 
 ---
 
