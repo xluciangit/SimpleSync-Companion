@@ -24,6 +24,15 @@ Android companion app for [SimpleSync Server](https://github.com/xluciangit/Simp
 
 ---
 
+## What changed in 1.2.1
+
+- 150ms delay between file uploads — prevents rate limit triggers and IP bans when uploading large folders on fast home Wi-Fi
+- Fixed: app could close when adding the first folder
+- Fixed: upload queue not starting automatically after adding a large folder (third folder onward)
+- Connection tab now refreshes the server URL immediately after changing server
+
+---
+
 ## What changed in 1.2.0
 
 The UI got a full redesign — new sidebar navigation, custom icons, and a darker theme. Under the hood the main change is API key hashing: keys are now stored as SHA-256 hashes instead of plain text. Existing keys keep working, nothing to change on the server side.
