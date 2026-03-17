@@ -10,17 +10,17 @@ Android companion app for [SimpleSync Server](https://github.com/xluciangit/Simp
 
 | Dark | Light |
 |------|-------|
-| ![Login dark](screenshots/login_dark.png) | ![Login light](screenshots/login_light.png) |
-| ![Test login dark](screenshots/test_login_success_dark.png) | ![Test login light](screenshots/test_login_success_light.png) |
-| ![Connection dark](screenshots/connection_dark.png) | ![Connection light](screenshots/connection_light.png) |
-| ![Queue dark](screenshots/queue_dark.png) | ![Queue light](screenshots/queue_light.png) |
-| ![Folders dark](screenshots/folders_dark.png) | ![Folders light](screenshots/folders_light.png) |
-| ![Settings1 dark](screenshots/settings1_dark.png) | ![Settings1 light](screenshots/settings1_light.png) |
-| ![Settings2 dark](screenshots/settings2_dark.png) | ![Settings2 light](screenshots/settings2_light.png) |
-| ![Add folder dark](screenshots/add_folder_dark.png) | ![Add folder light](screenshots/add_folder_light.png) |
-| ![Upload1 dark](screenshots/upload1_dark.png) | ![Upload1 light](screenshots/upload1_light.png) |
-| ![Upload2 dark](screenshots/upload2_dark.png) | ![Upload2 light](screenshots/upload2_light.png) |
-| ![Upload3 dark](screenshots/upload3_dark.png) | ![Upload3 light](screenshots/upload3_light.png) |
+| ![Login dark](screenshots/login_dark.jpg) | ![Login light](screenshots/login_light.jpg) |
+| ![Test login dark](screenshots/test_login_success_dark.jpg) | ![Test login light](screenshots/test_login_success_light.jpg) |
+| ![Connection dark](screenshots/connection_dark.jpg) | ![Connection light](screenshots/connection_light.jpg) |
+| ![Queue dark](screenshots/queue_dark.jpg) | ![Queue light](screenshots/queue_light.jpg) |
+| ![Folders dark](screenshots/folders_dark.jpg) | ![Folders light](screenshots/folders_light.jpg) |
+| ![Settings1 dark](screenshots/settings1_dark.jpg) | ![Settings1 light](screenshots/settings1_light.jpg) |
+| ![Settings2 dark](screenshots/settings2_dark.jpg) | ![Settings2 light](screenshots/settings2_light.jpg) |
+| ![Add folder dark](screenshots/add_folder_dark.jpg) | ![Add folder light](screenshots/add_folder_light.jpg) |
+| ![Upload1 dark](screenshots/upload1_dark.jpg) | ![Upload1 light](screenshots/upload1_light.jpg) |
+| ![Upload2 dark](screenshots/upload2_dark.jpg) | ![Upload2 light](screenshots/upload2_light.jpg) |
+| ![Upload3 dark](screenshots/upload3_dark.jpg) | ![Upload3 light](screenshots/upload3_light.jpg) |
 
 ---
 
