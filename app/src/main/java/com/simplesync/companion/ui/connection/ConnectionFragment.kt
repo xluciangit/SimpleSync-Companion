@@ -113,5 +113,14 @@ class ConnectionFragment : Fragment() {
         )
     }
 
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            val url = prefs.serverUrl.first()
+            binding.serverUrlDisplay.text = url.ifEmpty { "Not configured" }
+            binding.statusText.visibility = View.GONE
+        }
+    }
+
     override fun onDestroyView() { super.onDestroyView(); _binding = null }
 }

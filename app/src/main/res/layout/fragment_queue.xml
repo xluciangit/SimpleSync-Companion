@@ -6,52 +6,73 @@
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground">
 
-    <!-- Action chips -->
     <HorizontalScrollView
         android:id="@+id/actionBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:scrollbars="none"
-        android:paddingTop="12dp"
+        android:paddingTop="10dp"
         android:paddingBottom="4dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <com.google.android.material.chip.ChipGroup
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
-            app:singleSelection="false">
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:gravity="center_vertical">
 
-            <com.google.android.material.chip.Chip
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/pause_resume_btn"
-                style="@style/Widget.App.Chip"
+                style="@style/Widget.App.Button.Outlined"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⏸  Pause" />
+                android:layout_height="36dp"
+                android:minHeight="36dp"
+                android:text="Pause"
+                android:textSize="12sp"
+                android:paddingHorizontal="14dp"
+                android:layout_marginEnd="8dp"
+                app:icon="@drawable/ic_pause"
+                app:iconSize="20dp"
+                app:iconTint="@null"
+                app:iconGravity="textStart" />
 
-            <com.google.android.material.chip.Chip
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/retry_failed_btn"
-                style="@style/Widget.App.Chip"
+                style="@style/Widget.App.Button.Outlined"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Retry Failed" />
+                android:layout_height="36dp"
+                android:minHeight="36dp"
+                android:text="Retry Failed"
+                android:textSize="12sp"
+                android:paddingHorizontal="14dp"
+                android:layout_marginEnd="8dp" />
 
-            <com.google.android.material.chip.Chip
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/clear_completed_btn"
-                style="@style/Widget.App.Chip"
+                style="@style/Widget.App.Button.Outlined"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Clear Completed" />
+                android:layout_height="36dp"
+                android:layout_marginEnd="8dp"
+                android:minHeight="36dp"
+                android:paddingHorizontal="14dp"
+                android:text="Clear Completed"
+                android:textSize="12sp" />
 
-            <com.google.android.material.chip.Chip
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/clear_cancelled_btn"
-                style="@style/Widget.App.Chip"
+                style="@style/Widget.App.Button.Outlined"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Clear Cancelled" />
+                android:layout_height="36dp"
+                android:minHeight="36dp"
+                android:text="Clear Cancelled"
+                android:textSize="12sp"
+                android:paddingHorizontal="14dp"
+                android:layout_marginEnd="8dp" />
 
+            <!-- pending badge — kept invisible, used by code -->
             <com.google.android.material.chip.Chip
                 android:id="@+id/pending_badge"
                 style="@style/Widget.App.Chip"
@@ -62,17 +83,16 @@
                 android:clickable="false"
                 android:focusable="false" />
 
-        </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
     </HorizontalScrollView>
 
-    <!-- Filter chips -->
     <HorizontalScrollView
         android:id="@+id/chipScroll"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:scrollbars="none"
         android:paddingTop="2dp"
-        android:paddingBottom="8dp"
+        android:paddingBottom="6dp"
         app:layout_constraintTop_toBottomOf="@id/actionBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -80,7 +100,7 @@
         <com.google.android.material.chip.ChipGroup
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="12dp"
             app:singleSelection="true">
 
             <com.google.android.material.chip.Chip
@@ -122,7 +142,6 @@
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 
-    <!-- Thin divider under chips -->
     <View
         android:id="@+id/chipDivider"
         android:layout_width="0dp"

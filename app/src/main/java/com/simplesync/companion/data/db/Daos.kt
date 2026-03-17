@@ -3,8 +3,6 @@ package com.simplesync.companion.data.db
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
-// ── FolderConfigDao ───────────────────────────────────────────────────────────
-
 @Dao
 interface FolderConfigDao {
     @Query("SELECT * FROM folder_configs ORDER BY id ASC")
@@ -19,7 +17,10 @@ interface FolderConfigDao {
     @Query("SELECT * FROM folder_configs WHERE id = :id")
     suspend fun getById(id: Long): FolderConfig?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT * FROM folder_configs WHERE remoteFolderName = :name LIMIT 1")
+    suspend fun getByRemoteName(name: String): FolderConfig?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(config: FolderConfig): Long
 
     @Update
@@ -28,11 +29,12 @@ interface FolderConfigDao {
     @Delete
     suspend fun delete(config: FolderConfig)
 
+    @Query("DELETE FROM folder_configs")
+    suspend fun deleteAll()
+
     @Query("UPDATE folder_configs SET lastScanAt = :ts WHERE id = :id")
     suspend fun updateLastScan(id: Long, ts: Long)
 }
-
-// ── TrackedFileDao ────────────────────────────────────────────────────────────
 
 @Dao
 interface TrackedFileDao {
@@ -44,9 +46,10 @@ interface TrackedFileDao {
 
     @Query("DELETE FROM tracked_files WHERE folderConfigId = :cfgId")
     suspend fun deleteForConfig(cfgId: Long)
-}
 
-// ── UploadJobDao ──────────────────────────────────────────────────────────────
+    @Query("DELETE FROM tracked_files")
+    suspend fun deleteAll()
+}
 
 @Dao
 interface UploadJobDao {
@@ -62,7 +65,7 @@ interface UploadJobDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(job: UploadJob): Long
 
-    @Query("SELECT * FROM upload_jobs WHERE folderConfigId = :cfgId AND relativePath = :path AND status NOT IN ('COMPLETED','CANCELLED') LIMIT 1")
+    @Query("SELECT * FROM upload_jobs WHERE folderConfigId = :cfgId AND relativePath = :path AND status NOT IN ('COMPLETED','SKIPPED','CANCELLED') LIMIT 1")
     suspend fun findActive(cfgId: Long, path: String): UploadJob?
 
     @Query("UPDATE upload_jobs SET status = :status, errorMessage = :err, completedAt = :ts, progressBytes = :prog, uploadSpeedBps = 0 WHERE id = :id")
@@ -80,10 +83,10 @@ interface UploadJobDao {
     @Query("UPDATE upload_jobs SET status = 'CANCELLED' WHERE id = :id AND status = 'PENDING'")
     suspend fun cancelJob(id: Long)
 
-    @Query("DELETE FROM upload_jobs WHERE status = 'COMPLETED'")
+    @Query("DELETE FROM upload_jobs WHERE status = 'COMPLETED' OR status = 'SKIPPED'")
     suspend fun clearCompleted()
 
-    @Query("DELETE FROM upload_jobs WHERE id = :id AND status = 'COMPLETED'")
+    @Query("DELETE FROM upload_jobs WHERE id = :id AND (status = 'COMPLETED' OR status = 'SKIPPED')")
     suspend fun clearSingleCompleted(id: Long)
 
     @Query("DELETE FROM upload_jobs WHERE status = 'CANCELLED'")
@@ -92,9 +95,15 @@ interface UploadJobDao {
     @Query("UPDATE upload_jobs SET status = 'CANCELLED' WHERE status = 'PENDING'")
     suspend fun cancelAllPending()
 
+    @Query("DELETE FROM upload_jobs")
+    suspend fun deleteAllJobs()
+
     @Query("DELETE FROM upload_jobs WHERE folderConfigId = :cfgId")
     suspend fun deleteForConfig(cfgId: Long)
 
     @Query("UPDATE upload_jobs SET status = 'PENDING', errorMessage = NULL WHERE status = 'UPLOADING'")
     suspend fun resetStuckUploading()
+
+    @Query("UPDATE upload_jobs SET uploadNote = :note WHERE id = :id")
+    suspend fun updateUploadNote(id: Long, note: String?)
 }

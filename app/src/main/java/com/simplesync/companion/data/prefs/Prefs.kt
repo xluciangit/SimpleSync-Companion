@@ -13,13 +13,10 @@ class Prefs(private val context: Context) {
 
     companion object {
         val SERVER_URL  = stringPreferencesKey("server_url")
-        val API_KEY     = stringPreferencesKey("api_key")
-        val NOTIF_ON    = booleanPreferencesKey("notifications_on")
-        /** Values: "dark" | "light" | "system"  (default "dark") */
-        val APP_THEME   = stringPreferencesKey("app_theme")
-        /** Direct IP:port URL for uploads over 100 MB — bypasses Cloudflare tunnel limit. */
-        val DIRECT_URL      = stringPreferencesKey("direct_url")
-        /** When true, UploadWorker will not start new uploads. */
+        val API_KEY = stringPreferencesKey("api_key")
+        val NOTIF_ON = booleanPreferencesKey("notifications_on")
+        val APP_THEME = stringPreferencesKey("app_theme")
+        val DIRECT_URL = stringPreferencesKey("direct_url")
         val UPLOADS_PAUSED  = booleanPreferencesKey("uploads_paused")
 
         @Volatile private var INSTANCE: Prefs? = null
@@ -32,7 +29,6 @@ class Prefs(private val context: Context) {
     val apiKey:    Flow<String>  = context.dataStore.data.map { it[API_KEY]    ?: "" }
     val notifsOn:  Flow<Boolean> = context.dataStore.data.map { it[NOTIF_ON]  ?: true }
     val appTheme:  Flow<String>  = context.dataStore.data.map { it[APP_THEME] ?: "dark" }
-    /** Null / empty means no direct URL configured — use tunnel for everything. */
     val directUrl: Flow<String>    = context.dataStore.data.map { it[DIRECT_URL]     ?: "" }
     val uploadsPaused: Flow<Boolean> = context.dataStore.data.map { it[UPLOADS_PAUSED] ?: false }
 
@@ -43,13 +39,11 @@ class Prefs(private val context: Context) {
     suspend fun setDirectUrl(v: String)     = context.dataStore.edit { it[DIRECT_URL]     = v.trimEnd('/') }
     suspend fun setUploadsPaused(v: Boolean) = context.dataStore.edit { it[UPLOADS_PAUSED] = v }
 
-    /** Returns true only when both serverUrl and apiKey are non-empty. */
     suspend fun isConfigured(): Boolean {
         val data = context.dataStore.data.first()
         return (data[SERVER_URL] ?: "").isNotEmpty() && (data[API_KEY] ?: "").isNotEmpty()
     }
 
-    /** Read theme synchronously (for use in App.onCreate before any UI exists). */
     fun getThemeBlocking(): String {
         return kotlinx.coroutines.runBlocking {
             context.dataStore.data.first()[APP_THEME] ?: "dark"

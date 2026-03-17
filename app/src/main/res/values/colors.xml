@@ -1,26 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Light theme — matches Simple Sync Server light theme exactly -->
-    <color name="md_theme_primary">#2563EB</color>
+    <!-- Brand palette -->
+    <color name="brand_highlight">#9FD0FF</color>
+    <color name="brand_blue_light">#5FA6F2</color>
+    <color name="brand_blue_main">#3F86E8</color>
+    <color name="brand_blue_dark">#2F6FDC</color>
+    <color name="brand_cyan">#39C5D9</color>
+    <color name="brand_cyan_light">#7FE7F2</color>
+    <color name="brand_white">#FFFFFF</color>
+    <color name="brand_soft_outline">#E6EEF7</color>
+
+    <!-- Light theme -->
+    <color name="md_theme_primary">#3F86E8</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
-    <color name="md_theme_primaryContainer">#DBEAFE</color>
-    <color name="md_theme_onPrimaryContainer">#1E3A8A</color>
-    <color name="md_theme_secondary">#374151</color>
+    <color name="md_theme_primaryContainer">#D6EAFF</color>
+    <color name="md_theme_onPrimaryContainer">#2F6FDC</color>
+    <color name="md_theme_secondary">#5FA6F2</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
-    <color name="md_theme_secondaryContainer">#F3F4F6</color>
-    <color name="md_theme_onSecondaryContainer">#374151</color>
+    <color name="md_theme_secondaryContainer">#E6EEF7</color>
+    <color name="md_theme_onSecondaryContainer">#2F6FDC</color>
     <color name="md_theme_surface">#FFFFFF</color>
-    <color name="md_theme_onSurface">#111827</color>
-    <color name="md_theme_surfaceVariant">#F9FAFB</color>
-    <color name="md_theme_onSurfaceVariant">#6B7280</color>
-    <color name="md_theme_background">#EEF0F5</color>
-    <color name="md_theme_onBackground">#111827</color>
-    <color name="md_theme_outline">#E2E5EE</color>
-    <color name="md_theme_outlineVariant">#E5E7EB</color>
+    <color name="md_theme_onSurface">#0D1A2E</color>
+    <color name="md_theme_surfaceVariant">#F0F6FF</color>
+    <color name="md_theme_onSurfaceVariant">#4A6A90</color>
+    <color name="md_theme_background">#EEF4FC</color>
+    <color name="md_theme_onBackground">#0D1A2E</color>
+    <color name="md_theme_outline">#C8DCF5</color>
+    <color name="md_theme_outlineVariant">#DDEAF8</color>
     <color name="md_theme_error">#DC2626</color>
     <color name="md_theme_onError">#FFFFFF</color>
     <color name="md_theme_errorContainer">#FEE2E2</color>
-    <color name="color_uploading">#2563EB</color>
-    <color name="color_success">#16A34A</color>
+    <color name="color_uploading">#3F86E8</color>
+    <color name="color_success">#39C5D9</color>
     <color name="color_warning">#D97706</color>
+
+    <!-- Sidebar colors (light) -->
+    <color name="sidebar_bg">#FFFFFF</color>
+    <color name="sidebar_active_bg">#E8F2FF</color>
+    <color name="sidebar_icon_active">#3F86E8</color>
+    <color name="sidebar_icon_inactive">#9AB5D0</color>
+    <color name="header_bg">#FFFFFF</color>
 </resources>

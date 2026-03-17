@@ -6,8 +6,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.*
-import com.google.android.material.chip.Chip
-import com.google.android.material.color.MaterialColors
 import com.simplesync.companion.R
 import com.simplesync.companion.data.db.JobStatus
 import com.simplesync.companion.data.db.UploadJob
@@ -40,7 +38,6 @@ class QueueFragment : Fragment() {
             addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
 
-        // Filter chips
         val chipMap = mapOf(
             FilterType.ALL       to binding.chipAll,
             FilterType.PENDING   to binding.chipPending,
@@ -57,17 +54,16 @@ class QueueFragment : Fragment() {
         }
 
         vm.filteredJobs.observe(viewLifecycleOwner) { jobs ->
-            // Capture scroll state BEFORE submitting the new list.
-            // We only want to scroll to top if the user is already near the top
-            // (within the first item) — never auto-scroll when they've scrolled down.
-            val lm = binding.recyclerView.layoutManager as LinearLayoutManager
-            val firstVisible = lm.findFirstCompletelyVisibleItemPosition()
-
             adapter.submitList(jobs) {
-                // This callback runs after DiffUtil has been applied.
-                // Scroll to top only if we were already at the top.
-                if (firstVisible <= 0) {
-                    binding.recyclerView.scrollToPosition(0)
+                val uploadingIdx = jobs.indexOfFirst { it.status == JobStatus.UPLOADING }
+                val targetIdx = when {
+                    uploadingIdx >= 0                                          -> uploadingIdx
+                    jobs.indexOfFirst { it.status == JobStatus.PENDING } >= 0 ->
+                        jobs.indexOfFirst { it.status == JobStatus.PENDING }
+                    else                                                       -> -1
+                }
+                if (targetIdx >= 0) {
+                    binding.recyclerView.scrollToPosition(targetIdx)
                 }
                 binding.emptyText.isVisible = jobs.isEmpty()
             }
@@ -78,24 +74,14 @@ class QueueFragment : Fragment() {
             binding.pendingBadge.text = "$count pending"
         }
 
-        // Pause / Resume toggle
-        // Use Assist chip style (always looks enabled) and tint background manually
-        // to show active state without the Filter chip's disabled-looking unchecked state.
         vm.uploadsPaused.observe(viewLifecycleOwner) { paused ->
-            binding.pauseResumeBtn.text = if (paused) "▶  Resume" else "⏸  Pause"
-            // Filled accent colour when paused (Resume), neutral surface when active (Pause)
-            val bgColor = if (paused)
-                com.google.android.material.color.MaterialColors.getColor(
-                    binding.pauseResumeBtn,
-                    com.google.android.material.R.attr.colorPrimaryContainer
-                )
-            else
-                com.google.android.material.color.MaterialColors.getColor(
-                    binding.pauseResumeBtn,
-                    com.google.android.material.R.attr.colorSurfaceVariant
-                )
-            binding.pauseResumeBtn.chipBackgroundColor =
-                android.content.res.ColorStateList.valueOf(bgColor)
+            if (paused) {
+                binding.pauseResumeBtn.text = "Resume"
+                binding.pauseResumeBtn.setIconResource(R.drawable.ic_resume)
+            } else {
+                binding.pauseResumeBtn.text = "Pause"
+                binding.pauseResumeBtn.setIconResource(R.drawable.ic_pause)
+            }
         }
         binding.pauseResumeBtn.setOnClickListener {
             val paused = vm.uploadsPaused.value ?: false
@@ -112,8 +98,6 @@ class QueueFragment : Fragment() {
 
     override fun onDestroyView() { super.onDestroyView(); _binding = null }
 }
-
-// ── Adapter ───────────────────────────────────────────────────────────────────
 class JobAdapter(
     private val onRetry:  (UploadJob) -> Unit,
     private val onCancel: (UploadJob) -> Unit
@@ -124,25 +108,27 @@ class JobAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         VH(ItemUploadJobBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
-    // Full bind — called when item first appears or status/content changes
     override fun onBindViewHolder(holder: VH, position: Int) {
         val job = getItem(position)
-        val b   = holder.b
+        val b = holder.b
         b.fileName.text   = job.fileName
         b.fileSize.text   = fmtBytes(job.fileSize)
         b.folderName.text = job.remoteFolderName
+        b.filePath.text   = job.relativePath
+        b.uploadNote.isVisible = job.uploadNote != null
+        b.uploadNote.text      = job.uploadNote ?: ""
 
         val sdf = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
         b.createdAt.text  = sdf.format(Date(job.createdAt))
 
-        // Status pill — text + bg tint
         data class StatusStyle(val label: String, val textHex: Int, val bgHex: Int)
         val style = when (job.status) {
-            JobStatus.PENDING   -> StatusStyle("Pending",   0xFF6B7280.toInt(), 0xFFF3F4F6.toInt())
-            JobStatus.UPLOADING -> StatusStyle("Uploading", 0xFF2563EB.toInt(), 0xFFEFF6FF.toInt())
-            JobStatus.COMPLETED -> StatusStyle("Completed", 0xFF16A34A.toInt(), 0xFFDCFCE7.toInt())
-            JobStatus.FAILED    -> StatusStyle("Failed",    0xFFDC2626.toInt(), 0xFFFEE2E2.toInt())
-            JobStatus.CANCELLED -> StatusStyle("Cancelled", 0xFF9CA3AF.toInt(), 0xFFF9FAFB.toInt())
+            JobStatus.PENDING   -> StatusStyle("Pending",          0xFF6B7280.toInt(), 0xFFF3F4F6.toInt())
+            JobStatus.UPLOADING -> StatusStyle("Uploading",        0xFF2563EB.toInt(), 0xFFEFF6FF.toInt())
+            JobStatus.COMPLETED -> StatusStyle("Completed",        0xFF16A34A.toInt(), 0xFFDCFCE7.toInt())
+            JobStatus.SKIPPED   -> StatusStyle("Already on server",0xFF7C3AED.toInt(), 0xFFEDE9FE.toInt())
+            JobStatus.FAILED    -> StatusStyle("Failed",           0xFFDC2626.toInt(), 0xFFFEE2E2.toInt())
+            JobStatus.CANCELLED -> StatusStyle("Cancelled",        0xFF9CA3AF.toInt(), 0xFFF9FAFB.toInt())
         }
         b.status.text = style.label
         b.status.setTextColor(style.textHex)
@@ -162,8 +148,6 @@ class JobAdapter(
         b.cancelBtn.setOnClickListener { onCancel(job) }
     }
 
-    // Partial bind — called with PROGRESS payload to update only the progress views,
-    // skipping the full rebind that causes the card flash.
     override fun onBindViewHolder(holder: VH, position: Int, payloads: List<Any>) {
         if (payloads.isEmpty()) {
             onBindViewHolder(holder, position)
@@ -191,14 +175,12 @@ class JobAdapter(
             override fun areItemsTheSame(a: UploadJob, b: UploadJob) = a.id == b.id
             override fun areContentsTheSame(a: UploadJob, b: UploadJob) = a == b
 
-            // When only progress/speed changed on an UPLOADING job, emit a lightweight
-            // payload instead of returning false (which would trigger a full rebind + flash).
             override fun getChangePayload(oldItem: UploadJob, newItem: UploadJob): Any? {
                 if (oldItem.status == JobStatus.UPLOADING &&
                     newItem.status == JobStatus.UPLOADING &&
                     oldItem.progressBytes != newItem.progressBytes
                 ) return PAYLOAD_PROGRESS
-                return null  // fall through to full rebind for all other changes
+                return null
             }
         }
 

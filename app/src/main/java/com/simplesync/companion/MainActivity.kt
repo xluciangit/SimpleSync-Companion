@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -28,6 +29,15 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* silently handled */ }
 
+    data class NavItem(
+        val btn: android.widget.ImageView,
+        val indicator: View,
+        val destId: Int,
+        val label: String
+    )
+
+    private lateinit var navItems: List<NavItem>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -45,23 +55,21 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHost.navController
 
-        // Keep hidden BottomNavigationView wired so back-stack behaviour is unchanged
         binding.bottomNav.setupWithNavController(navController)
 
-        // Wire custom tab bar clicks
-        binding.tabQueue.setOnClickListener {
-            navController.navigate(R.id.queueFragment)
-        }
-        binding.tabFolders.setOnClickListener {
-            navController.navigate(R.id.foldersFragment)
-        }
-        binding.tabSettings.setOnClickListener {
-            navController.navigate(R.id.settingsFragment)
+        navItems = listOf(
+            NavItem(binding.navConnection, binding.indicatorConnection, R.id.connectionFragment, "Connection"),
+            NavItem(binding.navQueue,      binding.indicatorQueue,      R.id.queueFragment,      "Queue"),
+            NavItem(binding.navFolders,    binding.indicatorFolders,    R.id.foldersFragment,    "Folders"),
+            NavItem(binding.navSettings,   binding.indicatorSettings,   R.id.settingsFragment,   "Settings"),
+        )
+
+        navItems.forEach { item ->
+            item.btn.setOnClickListener { navController.navigate(item.destId) }
         }
 
-        // Update tab highlight whenever destination changes
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            updateTabHighlight(destination.id)
+            updateSidebar(destination.id)
         }
 
         ScanWorker.schedule(this, 60)
@@ -69,19 +77,17 @@ class MainActivity : AppCompatActivity() {
         requestBatteryOptimisationExemption()
     }
 
-    private fun updateTabHighlight(destinationId: Int) {
-        val activeColor   = com.google.android.material.color.MaterialColors.getColor(
-            binding.tabQueue, com.google.android.material.R.attr.colorOnSurface)
-        val inactiveColor = com.google.android.material.color.MaterialColors.getColor(
-            binding.tabQueue, com.google.android.material.R.attr.colorOnSurfaceVariant)
-
-        listOf(
-            binding.tabQueue    to R.id.queueFragment,
-            binding.tabFolders  to R.id.foldersFragment,
-            binding.tabSettings to R.id.settingsFragment,
-        ).forEach { (tab, id) ->
-            tab.setTextColor(if (destinationId == id) activeColor else inactiveColor)
+    private fun updateSidebar(destinationId: Int) {
+        navItems.forEach { item ->
+            val isActive = item.destId == destinationId
+            item.indicator.visibility = if (isActive) View.VISIBLE else View.GONE
+            item.btn.isSelected = isActive
+            item.btn.clearColorFilter()
+            item.btn.alpha = if (isActive) 1.0f else 0.45f
         }
+
+        val title = navItems.firstOrNull { it.destId == destinationId }?.label ?: ""
+        binding.pageTitle.text = title
     }
 
     private fun requestNotificationPermission() {

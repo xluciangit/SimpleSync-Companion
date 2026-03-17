@@ -4,9 +4,20 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="4dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="8dp">
+    android:background="?android:attr/colorBackground"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add Sync Folder"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:textColor="?attr/colorOnSurface"
+        android:letterSpacing="-0.01"
+        android:layout_marginBottom="16dp" />
 
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.App.TextInput"
@@ -49,7 +60,6 @@
         android:background="@drawable/spinner_bg"
         android:paddingHorizontal="16dp" />
 
-    <!-- Hidden files row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -90,7 +100,24 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="After tapping 'Choose Folder', pick the local folder to sync from the file picker."
-        android:textSize="12sp"
+        android:layout_marginBottom="16dp"
+        android:text="After tapping Choose Folder, pick the local folder to sync from the file picker."
+        android:textSize="13sp"
         android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnChooseFolder"
+        style="@style/Widget.App.Button.Outlined"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="Choose Folder"
+        android:layout_marginBottom="8dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCancel"
+        style="@style/Widget.App.Button.Ghost"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="Cancel" />
+
 </LinearLayout>

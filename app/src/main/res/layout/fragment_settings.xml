@@ -11,62 +11,6 @@
         android:orientation="vertical"
         android:paddingTop="16dp"
         android:paddingBottom="32dp">
-
-        <!-- ── Server Connection ─────────────────────────────────────── -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.App.Card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Server"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="?attr/colorOnSurface"
-                    android:letterSpacing="-0.01"
-                    android:layout_marginBottom="4dp" />
-
-                <TextView
-                    android:id="@+id/serverUrlDisplay"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="13sp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginBottom="16dp"
-                    android:text="Not configured" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/testConnectionBtn"
-                        style="@style/Widget.App.Button.Outlined"
-                        android:layout_width="wrap_content"
-                        android:layout_height="44dp"
-                        android:text="Test"
-                        android:layout_marginEnd="10dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/changeServerBtn"
-                        style="@style/Widget.App.Button.Primary"
-                        android:layout_width="wrap_content"
-                        android:layout_height="44dp"
-                        android:text="Change Server" />
-                </LinearLayout>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ── Battery ───────────────────────────────────────────────── -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.App.Card"
             android:layout_width="match_parent"
@@ -103,17 +47,9 @@
                     android:layout_height="52dp"
                     android:text="Disable Battery Optimisation" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginTop="12dp"
-                    android:text="Samsung users: also go to Settings → Battery → Background usage limits and ensure SimpleSync Companion is not listed under Sleeping or Deep sleeping apps." />
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <!-- ── Manual Controls ────────────────────────────────────────── -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.App.Card"
             android:layout_width="match_parent"
@@ -152,8 +88,53 @@
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.App.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
-        <!-- ── Appearance ─────────────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Server Sync"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:letterSpacing="-0.01"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Check whether a server integrity check has removed any missing file records. If changes are detected, local upload history is cleared and a fresh scan is triggered so files are re-uploaded as needed."
+                    android:textSize="13sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/integrityStatusText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/checkIntegrityBtn"
+                    style="@style/Widget.App.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="Check Integrity Status" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.App.Card"
             android:layout_width="match_parent"
@@ -217,8 +198,6 @@
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <!-- ── Notifications ──────────────────────────────────────────── -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.App.Card"
             android:layout_width="match_parent"

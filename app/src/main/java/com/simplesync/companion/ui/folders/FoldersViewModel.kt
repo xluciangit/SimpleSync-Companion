@@ -10,6 +10,8 @@ import com.simplesync.companion.worker.ScanWorker
 import kotlinx.coroutines.launch
 
 class FoldersViewModel(app: Application) : AndroidViewModel(app) {
+    private val _error = MutableLiveData<String?>()
+    val error: LiveData<String?> = _error
 
     private val repo = SyncRepository.get(app)
 
@@ -37,6 +39,11 @@ class FoldersViewModel(app: Application) : AndroidViewModel(app) {
             } catch (_: Exception) {}
         }
 
+        if (repo.folderExistsByRemoteName(remoteName)) {
+            _error.postValue("A folder syncing to \"$remoteName\" on the server already exists.")
+            return@launch
+        }
+
         val folderId = repo.addFolder(
             FolderConfig(
                 displayName         = displayName,
@@ -46,6 +53,11 @@ class FoldersViewModel(app: Application) : AndroidViewModel(app) {
                 uploadHiddenFiles   = uploadHidden
             )
         )
+
+        if (folderId <= 0L) {
+            _error.postValue("Could not add folder — \"$remoteName\" may already be configured.")
+            return@launch
+        }
 
         repo.clearJobsForFolder(folderId)
         ScanWorker.runNow(getApplication())

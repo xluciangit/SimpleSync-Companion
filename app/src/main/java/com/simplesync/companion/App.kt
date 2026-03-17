@@ -15,12 +15,11 @@ class App : Application() {
         createNotificationChannels()
     }
 
-    /** Read the saved theme pref and apply it before any Activity is created. */
     fun applyTheme() {
         val mode = when (Prefs.get(this).getThemeBlocking()) {
             "light"  -> AppCompatDelegate.MODE_NIGHT_NO
             "system" -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            else     -> AppCompatDelegate.MODE_NIGHT_YES   // "dark" is default
+            else     -> AppCompatDelegate.MODE_NIGHT_YES
         }
         AppCompatDelegate.setDefaultNightMode(mode)
     }

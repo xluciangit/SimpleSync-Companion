@@ -5,6 +5,11 @@
     app:startDestination="@id/queueFragment">
 
     <fragment
+        android:id="@+id/connectionFragment"
+        android:name="com.simplesync.companion.ui.connection.ConnectionFragment"
+        android:label="Connection" />
+
+    <fragment
         android:id="@+id/queueFragment"
         android:name="com.simplesync.companion.ui.queue.QueueFragment"
         android:label="Queue" />

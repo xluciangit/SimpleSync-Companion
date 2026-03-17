@@ -1,7 +1,6 @@
 package com.simplesync.companion.ui.folders
 
-import android.app.AlertDialog
-import android.content.Intent
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.net.Uri
 import android.os.Bundle
 import android.view.*
@@ -11,8 +10,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.DividerItemDecoration
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -21,7 +19,7 @@ import androidx.appcompat.widget.SwitchCompat
 import com.simplesync.companion.R
 import com.simplesync.companion.data.db.FolderConfig
 import com.simplesync.companion.databinding.FragmentFoldersBinding
-import com.simplesync.companion.databinding.ItemFolderConfigBinding
+import com.simplesync.companion.databinding.ItemFolderGridBinding
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -30,7 +28,7 @@ class FoldersFragment : Fragment() {
     private var _binding: FragmentFoldersBinding? = null
     private val binding get() = _binding!!
     private val vm: FoldersViewModel by viewModels()
-    private lateinit var adapter: FolderAdapter
+    private lateinit var adapter: FolderGridAdapter
 
     private var pendingDisplay  = ""
     private var pendingRemote   = ""
@@ -42,12 +40,12 @@ class FoldersFragment : Fragment() {
         (2..24).forEach { add("$it hours" to it * 60) }
     }
 
+
     private val folderPicker = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
         vm.addFolder(pendingDisplay, uri, pendingRemote, pendingInterval, pendingHidden)
-        Toast.makeText(requireContext(), "Folder added – first scan starting", Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
@@ -56,19 +54,29 @@ class FoldersFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        adapter = FolderAdapter(
+        adapter = FolderGridAdapter(
             onSettings = { cfg -> showFolderSettingsSheet(cfg) },
             onToggle   = { vm.toggleActive(it) }
         )
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(context)
+            layoutManager = GridLayoutManager(context, 2)
             this.adapter  = this@FoldersFragment.adapter
-            addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
 
+        var prevCount = -1
         vm.folders.observe(viewLifecycleOwner) { list ->
+            if (prevCount >= 0 && list.size > prevCount) {
+                Toast.makeText(requireContext(), "Folder added – first scan starting", Toast.LENGTH_SHORT).show()
+            }
+            prevCount = list.size
             adapter.submitList(list)
             binding.emptyText.isVisible = list.isEmpty()
+        }
+
+        vm.error.observe(viewLifecycleOwner) { msg ->
+            if (!msg.isNullOrEmpty()) {
+                Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+            }
         }
 
         binding.addFab.setOnClickListener { showAddDialog() }
@@ -87,71 +95,74 @@ class FoldersFragment : Fragment() {
     }
 
     private fun showAddDialog() {
-        val ctx        = requireContext()
+        val ctx = requireContext()
         val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_add_folder, null)
         val displayEt  = dialogView.findViewById<EditText>(R.id.etDisplayName)
-        val remoteEt   = dialogView.findViewById<EditText>(R.id.etRemoteName)
-        val spinner    = dialogView.findViewById<Spinner>(R.id.spinnerInterval)
-        val cbHidden   = dialogView.findViewById<CheckBox>(R.id.cbUploadHidden)
+        val remoteEt = dialogView.findViewById<EditText>(R.id.etRemoteName)
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinnerInterval)
+        val cbHidden = dialogView.findViewById<android.widget.CheckBox>(R.id.cbUploadHidden)
 
         spinner.adapter = makeIntervalAdapter()
         spinner.setSelection(intervalOptions.indexOfFirst { it.second == 60 }.coerceAtLeast(0))
 
-        AlertDialog.Builder(ctx)
-            .setTitle("Add Sync Folder")
+        val dialog = MaterialAlertDialogBuilder(ctx)
             .setView(dialogView)
-            .setPositiveButton("Choose Folder") { _, _ ->
-                val display  = displayEt.text.toString().trim()
-                val remote   = remoteEt.text.toString().trim()
-                val interval = intervalOptions[spinner.selectedItemPosition].second
-                val hidden   = cbHidden.isChecked
+            .create()
 
-                if (display.isEmpty() || remote.isEmpty()) {
-                    Toast.makeText(ctx, "Please fill all fields", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                pendingDisplay  = display
-                pendingRemote   = remote
-                pendingInterval = interval
-                pendingHidden   = hidden
-                folderPicker.launch(null)
+        dialogView.findViewById<MaterialButton>(R.id.btnChooseFolder).setOnClickListener {
+            val display  = displayEt.text.toString().trim()
+            val remote = remoteEt.text.toString().trim()
+            val interval = intervalOptions[spinner.selectedItemPosition].second
+            val hidden = cbHidden.isChecked
+
+            if (display.isEmpty() || remote.isEmpty()) {
+                Toast.makeText(ctx, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+            pendingDisplay  = display
+            pendingRemote   = remote
+            pendingInterval = interval
+            pendingHidden   = hidden
+            dialog.dismiss()
+            folderPicker.launch(null)
+        }
+
+        dialogView.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        val bg = dialogBackground(requireContext())
+        dialog.window?.setBackgroundDrawable(bg)
+        dialogView.background = dialogBackground(requireContext())
     }
 
-    // ── Folder settings bottom sheet ──────────────────────────────────────────
     private fun showFolderSettingsSheet(cfg: FolderConfig) {
-        val ctx    = requireContext()
-        val sheet  = BottomSheetDialog(ctx)
-        val view   = LayoutInflater.from(ctx).inflate(R.layout.sheet_folder_settings, null)
+        val ctx = requireContext()
+        val sheet = BottomSheetDialog(ctx)
+        val view  = LayoutInflater.from(ctx).inflate(R.layout.sheet_folder_settings, null)
         sheet.setContentView(view)
 
-        // Title
         view.findViewById<TextView>(R.id.sheetTitle).text = cfg.displayName
 
-        // Interval spinner
         val spinner = view.findViewById<Spinner>(R.id.sheetSpinnerInterval)
         spinner.adapter = makeIntervalAdapter()
         spinner.setSelection(intervalIndex(cfg.scanIntervalMinutes))
 
-        // Hidden files toggle
         val switchHidden = view.findViewById<SwitchCompat>(R.id.sheetSwitchHidden)
         switchHidden.isChecked = cfg.uploadHiddenFiles
 
-        // Save button
         view.findViewById<MaterialButton>(R.id.sheetSaveBtn).setOnClickListener {
             val newInterval = intervalOptions[spinner.selectedItemPosition].second
-            val newHidden   = switchHidden.isChecked
+            val newHidden = switchHidden.isChecked
             vm.updateSettings(cfg, newInterval, newHidden)
             sheet.dismiss()
             Toast.makeText(ctx, "Settings saved", Toast.LENGTH_SHORT).show()
         }
 
-        // Remove button
         view.findViewById<MaterialButton>(R.id.sheetRemoveBtn).setOnClickListener {
             sheet.dismiss()
-            AlertDialog.Builder(ctx)
+            MaterialAlertDialogBuilder(ctx)
                 .setTitle("Remove \"${cfg.displayName}\"?")
                 .setMessage("This removes the sync configuration. Files already uploaded to the server are not deleted.")
                 .setPositiveButton("Remove") { _, _ -> vm.deleteFolder(cfg) }
@@ -163,42 +174,46 @@ class FoldersFragment : Fragment() {
     }
 
     override fun onDestroyView() { super.onDestroyView(); _binding = null }
+    private fun dialogBackground(ctx: android.content.Context): android.graphics.drawable.GradientDrawable {
+        val ta = ctx.theme.obtainStyledAttributes(intArrayOf(android.R.attr.colorBackground))
+        val color = ta.getColor(0, android.graphics.Color.WHITE)
+        ta.recycle()
+        return android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            setColor(color)
+            cornerRadius = ctx.resources.getDimension(R.dimen.dialog_corner_radius)
+        }
+    }
 }
 
-// ── Adapter ───────────────────────────────────────────────────────────────────
-class FolderAdapter(
+class FolderGridAdapter(
     private val onSettings: (FolderConfig) -> Unit,
     private val onToggle:   (FolderConfig) -> Unit
-) : ListAdapter<FolderConfig, FolderAdapter.VH>(DIFF) {
+) : ListAdapter<FolderConfig, FolderGridAdapter.VH>(DIFF) {
 
-    inner class VH(val b: ItemFolderConfigBinding) : RecyclerView.ViewHolder(b.root)
+    inner class VH(val b: ItemFolderGridBinding) : RecyclerView.ViewHolder(b.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-        VH(ItemFolderConfigBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        VH(ItemFolderGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val cfg = getItem(position)
-        val b   = holder.b
+        val b = holder.b
 
         b.displayName.text = cfg.displayName
-        b.remoteName.text  = "→ Server: ${cfg.remoteFolderName}"
-
-        val intervalLabel = when {
-            cfg.scanIntervalMinutes < 60  -> "${cfg.scanIntervalMinutes} min"
-            cfg.scanIntervalMinutes == 60 -> "1 hour"
-            cfg.scanIntervalMinutes % 60 == 0 -> "${cfg.scanIntervalMinutes / 60} hours"
-            else -> "${cfg.scanIntervalMinutes} min"
-        }
-        val hiddenLabel = if (cfg.uploadHiddenFiles) " · hidden ✓" else ""
-        b.intervalText.text = "Scan every $intervalLabel$hiddenLabel"
-
-        b.activeSwitch.isChecked = cfg.isActive
+        b.remoteName.text  = cfg.remoteFolderName
 
         val sdf = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
         b.lastScan.text = if (cfg.lastScanAt > 0)
-            "Last scan: ${sdf.format(Date(cfg.lastScanAt))}" else "Not scanned yet"
+            sdf.format(Date(cfg.lastScanAt)) else "Not scanned yet"
 
-        b.activeSwitch.setOnClickListener { onToggle(cfg) }
+        b.activeSwitch.isChecked = cfg.isActive
+        b.activeLabel.text = if (cfg.isActive) "Active" else "Inactive"
+        b.activeSwitch.setOnClickListener {
+            onToggle(cfg)
+            val nowActive = b.activeSwitch.isChecked
+            b.activeLabel.text = if (nowActive) "Active" else "Inactive"
+        }
         b.settingsBtn.setOnClickListener  { onSettings(cfg) }
     }
 
@@ -208,4 +223,5 @@ class FolderAdapter(
             override fun areContentsTheSame(a: FolderConfig, b: FolderConfig) = a == b
         }
     }
+
 }

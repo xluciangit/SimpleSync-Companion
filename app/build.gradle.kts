@@ -29,8 +29,8 @@ android {
         applicationId = "com.simplesync.companion"
         minSdk        = 26
         targetSdk     = 35
-        versionCode   = 1
-        versionName   = "1.0.0"
+        versionCode   = 3
+        versionName   = "1.2.1"
         signingConfig = signingConfigs.getByName("release")
     }
 
@@ -41,6 +41,7 @@ android {
         release {
             signingConfig    = signingConfigs.getByName("release")
             isMinifyEnabled  = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
@@ -27,6 +28,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import com.simplesync.companion.R
 
 class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
@@ -34,12 +36,7 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
     private val prefs = Prefs.get(ctx)
     private val nm    = ctx.getSystemService(NotificationManager::class.java)
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(0,  TimeUnit.SECONDS)   // no write timeout for large files
-        .readTimeout(60,  TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
-        .build()
+    private val client get() = httpClient
 
     private val openAppIntent: PendingIntent by lazy {
         PendingIntent.getActivity(
@@ -58,21 +55,39 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         )
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        setForeground(getForegroundInfo())
+        try { setForeground(getForegroundInfo()) } catch (_: Exception) {}
 
         val serverUrl = prefs.serverUrl.first().trimEnd('/')
-        val apiKey    = prefs.apiKey.first()
-        val directUrl = prefs.directUrl.first().trimEnd('/').ifEmpty { null }
+        val apiKey = prefs.apiKey.first()
 
         if (serverUrl.isEmpty() || apiKey.isEmpty()) {
             nm.notify(NOTIF_ID_DONE, buildErrorNotif("Server URL or API key not configured."))
             return@withContext Result.failure()
         }
 
+        try {
+            val configClient = OkHttpClient.Builder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build()
+            val configReq = Request.Builder()
+                .url("$serverUrl/api/config")
+                .header("x-api-key", apiKey)
+                .build()
+            val configResp = configClient.newCall(configReq).execute()
+            val configBody = configResp.body?.string()
+            configResp.close()
+            if (configResp.isSuccessful && configBody != null) {
+                val fetched = JSONObject(configBody).optString("local_url", "")
+                prefs.setDirectUrl(fetched)
+            }
+        } catch (_: Exception) {}
+
+        val directUrl = prefs.directUrl.first().trimEnd('/').ifEmpty { null }
+
         val paused = prefs.uploadsPaused.first()
         if (paused) return@withContext Result.success()
 
-        // Reset any jobs stuck in UPLOADING from a previous run killed by the OS
         repo.resetStuckUploading()
 
         if (repo.getPendingJobs().isEmpty()) return@withContext Result.success()
@@ -81,8 +96,11 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         nm.notify(NOTIF_ID_PROGRESS, buildProgressNotif("Starting…", 0, total, 0))
 
         var succeeded = 0
-        var skipped   = 0
-        var failed    = 0
+        var skipped = 0
+        var failed = 0
+
+        val deferredIds = mutableSetOf<Long>()
+        val firstAttemptFailedIds = mutableSetOf<Long>()
 
         while (true) {
             val pending = repo.getPendingJobs()
@@ -90,7 +108,8 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
 
             if (prefs.uploadsPaused.first()) break
 
-            val job = pending.first()
+            val job = pending.firstOrNull { it.id !in deferredIds && it.id !in firstAttemptFailedIds }
+            if (job == null) break
             repo.updateJobStatus(job.id, JobStatus.UPLOADING)
 
             nm.notify(
@@ -107,6 +126,35 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             try {
                 val uri = Uri.parse(job.fileUriString)
 
+                if (job.fileSize > LARGE_FILE_THRESHOLD) {
+                    if (directUrl == null) {
+                        repo.updateJobStatus(
+                            job.id, JobStatus.FAILED,
+                            err = "File is ${job.fileSize / 1_048_576} MB — too large for Cloudflare tunnel. Set a Direct Upload URL in server Settings."
+                        )
+                        failed++
+                        continue
+                    }
+                    val reachable = try {
+                        val pingClient = OkHttpClient.Builder()
+                            .connectTimeout(3, TimeUnit.SECONDS)
+                            .readTimeout(3, TimeUnit.SECONDS)
+                            .build()
+                        val ping = pingClient.newCall(
+                            Request.Builder().url("$directUrl/api/ping").build()
+                        ).execute()
+                        ping.close()
+                        ping.isSuccessful
+                    } catch (_: Exception) { false }
+
+                    if (!reachable) {
+                        repo.updateJobStatus(job.id, JobStatus.PENDING)
+                        repo.updateJobUploadNote(job.id, "Large file – waiting for home network")
+                        deferredIds.add(job.id)
+                        continue
+                    }
+                }
+
                 val inputStream = applicationContext.contentResolver.openInputStream(uri)
                     ?: throw IOException("Cannot open URI: ${job.relativePath}")
                 tmpFile.outputStream().use { out -> inputStream.copyTo(out) }
@@ -116,20 +164,16 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 val hashExists = checkHashOnServer(serverUrl, apiKey, sha256, job.remoteFolderName)
 
                 if (hashExists) {
-                    repo.updateJobStatus(job.id, JobStatus.COMPLETED, prog = job.fileSize)
+                    repo.updateJobStatus(job.id, JobStatus.SKIPPED, prog = job.fileSize)
                     repo.markUploaded(job, sha256)
                     skipped++
                 } else {
                     val mimeType = applicationContext.contentResolver.getType(uri)
                         ?: "application/octet-stream"
 
-                    // AtomicLongs written by OkHttp's thread, read by the progress-reporter coroutine
                     val atomicBytes = AtomicLong(0L)
                     val atomicSpeed = AtomicLong(0L)
 
-                    // Launch a coroutine that polls the atomics and writes to Room every 500 ms.
-                    // This keeps Room's invalidation tracker on the coroutine dispatcher so the
-                    // UI Flow gets notified correctly — no runBlocking inside writeTo needed.
                     val progressJob = launch {
                         while (true) {
                             delay(500)
@@ -151,7 +195,7 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                                     sink.write(buf, 0, n)
                                     uploadedBytes += n
                                     atomicBytes.set(uploadedBytes)
-                                    val now     = System.currentTimeMillis()
+                                    val now = System.currentTimeMillis()
                                     val elapsed = now - speedStartTime
                                     if (elapsed >= 500) {
                                         val bps = if (elapsed > 0)
@@ -165,45 +209,15 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                         }
                     }
 
-                    val CF_LIMIT = 100L * 1024 * 1024
-                    val uploadBase = if (tmpFile.length() > CF_LIMIT) {
-                        if (directUrl == null) {
-                            progressJob.cancel()
-                            repo.updateJobStatus(
-                                job.id, JobStatus.FAILED,
-                                err = "File is ${tmpFile.length() / 1_048_576} MB — too large for Cloudflare tunnel. Set a Direct Upload URL in server Settings."
-                            )
-                            failed++
-                            continue
-                        }
-                        val reachable = try {
-                            val pingClient = OkHttpClient.Builder()
-                                .connectTimeout(3, TimeUnit.SECONDS)
-                                .readTimeout(3, TimeUnit.SECONDS)
-                                .build()
-                            val ping = pingClient.newCall(
-                                Request.Builder().url("$directUrl/api/ping").build()
-                            ).execute()
-                            ping.close()
-                            ping.isSuccessful
-                        } catch (_: Exception) { false }
+                    val uploadBase = if (tmpFile.length() > LARGE_FILE_THRESHOLD) directUrl!! else serverUrl
 
-                        if (!reachable) {
-                            progressJob.cancel()
-                            repo.updateJobStatus(job.id, JobStatus.PENDING)
-                            continue
-                        }
-                        directUrl
-                    } else {
-                        serverUrl
-                    }
+                    repo.updateJobUploadNote(job.id, uploadBase)
 
                     val multipart = MultipartBody.Builder()
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("folder",        job.remoteFolderName)
                         .addFormDataPart("relative_path", job.relativePath)
                         .addFormDataPart("hash",          sha256)
-                        .addFormDataPart("android_path",  job.relativePath)
                         .addFormDataPart("file",          job.fileName, requestBody)
                         .build()
 
@@ -213,33 +227,114 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                         .post(multipart)
                         .build()
 
-                    val response     = client.newCall(request).execute()
+                    val response = client.newCall(request).execute()
                     val responseBody = response.body?.string()
-                    val isSuccess    = response.isSuccessful
-                    val code         = response.code
+                    val isSuccess = response.isSuccessful
+                    val code = response.code
                     response.close()
 
-                    // Stop progress reporter before writing final status
                     progressJob.cancel()
 
                     if (isSuccess) {
-                        repo.updateJobStatus(job.id, JobStatus.COMPLETED, prog = job.fileSize)
+                        val serverSkipped = try {
+                            responseBody != null && JSONObject(responseBody).optBoolean("skipped", false)
+                        } catch (_: Exception) { false }
+
+                        if (serverSkipped) {
+                            repo.updateJobStatus(job.id, JobStatus.SKIPPED, prog = job.fileSize)
+                            repo.updateJobUploadNote(job.id, uploadBase)
+                            skipped++
+                        } else {
+                            repo.updateJobStatus(job.id, JobStatus.COMPLETED, prog = job.fileSize)
+                            repo.updateJobUploadNote(job.id, uploadBase)
+                            succeeded++
+                        }
                         repo.markUploaded(job, sha256)
-                        succeeded++
                     } else {
-                        repo.updateJobStatus(
-                            job.id, JobStatus.FAILED,
-                            err = responseBody ?: "HTTP $code"
-                        )
+                        val errMsg = when (code) {
+                            507  -> "Server storage is full — upload rejected."
+                            else -> responseBody ?: "HTTP $code"
+                        }
+                        repo.updateJobStatus(job.id, JobStatus.FAILED, err = errMsg)
                         failed++
                     }
                 }
 
             } catch (e: Exception) {
-                repo.updateJobStatus(job.id, JobStatus.FAILED, err = e.message ?: "Unknown error")
-                failed++
+                if (job.id !in firstAttemptFailedIds) {
+                    repo.updateJobStatus(job.id, JobStatus.PENDING, err = e.message ?: "Upload failed")
+                    firstAttemptFailedIds.add(job.id)
+                } else {
+                    repo.updateJobStatus(job.id, JobStatus.FAILED, err = e.message ?: "Unknown error")
+                    failed++
+                }
             } finally {
                 try { tmpFile.delete() } catch (_: Exception) {}
+            }
+            delay(150)
+        }
+
+        if (firstAttemptFailedIds.isNotEmpty() && !prefs.uploadsPaused.first()) {
+            for (retryId in firstAttemptFailedIds) {
+                if (prefs.uploadsPaused.first()) break
+                val job = repo.getPendingJobs().firstOrNull { it.id == retryId } ?: continue
+                repo.updateJobStatus(job.id, JobStatus.UPLOADING)
+                val tmpFile = File(applicationContext.cacheDir, "ssc_retry_${job.id}")
+                try {
+                    val uri = Uri.parse(job.fileUriString)
+                    val inputStream = applicationContext.contentResolver.openInputStream(uri)
+                        ?: throw java.io.IOException("Cannot open URI")
+                    tmpFile.outputStream().use { out -> inputStream.copyTo(out) }
+                    inputStream.close()
+                    val sha256 = computeSha256(tmpFile)
+                    val hashExists = checkHashOnServer(serverUrl, apiKey, sha256, job.remoteFolderName)
+                    if (hashExists) {
+                        repo.updateJobStatus(job.id, JobStatus.SKIPPED, prog = job.fileSize)
+                        repo.markUploaded(job, sha256)
+                        skipped++
+                    } else {
+                        val mimeType = applicationContext.contentResolver.getType(uri) ?: "application/octet-stream"
+                        val uploadBase = if (tmpFile.length() > 100L * 1024 * 1024) directUrl ?: serverUrl else serverUrl
+                        val requestBody = tmpFile.asRequestBody(mimeType.toMediaType())
+                        val multipart = MultipartBody.Builder()
+                            .setType(MultipartBody.FORM)
+                            .addFormDataPart("folder", job.remoteFolderName)
+                            .addFormDataPart("relative_path", job.relativePath)
+                            .addFormDataPart("hash", sha256)
+                            .addFormDataPart("file", job.fileName, requestBody)
+                            .build()
+                        val request = Request.Builder()
+                            .url("$uploadBase/api/upload")
+                            .header("x-api-key", apiKey)
+                            .post(multipart)
+                            .build()
+                        val response = client.newCall(request).execute()
+                        val responseBody = response.body?.string()
+                        val isSuccess = response.isSuccessful
+                        val code = response.code
+                        response.close()
+                        if (isSuccess) {
+                            val serverSkipped = try { responseBody != null && JSONObject(responseBody).optBoolean("skipped", false) } catch (_: Exception) { false }
+                            if (serverSkipped) {
+                                repo.updateJobStatus(job.id, JobStatus.SKIPPED, prog = job.fileSize)
+                                skipped++
+                            } else {
+                                repo.updateJobStatus(job.id, JobStatus.COMPLETED, prog = job.fileSize)
+                                succeeded++
+                            }
+                            repo.markUploaded(job, sha256)
+                        } else {
+                            val errMsg = if (code == 507) "Server storage is full — upload rejected." else responseBody ?: "HTTP $code"
+                            repo.updateJobStatus(job.id, JobStatus.FAILED, err = errMsg)
+                            failed++
+                        }
+                    }
+                } catch (e: Exception) {
+                    repo.updateJobStatus(job.id, JobStatus.FAILED, err = e.message ?: "Unknown error")
+                    failed++
+                } finally {
+                    try { tmpFile.delete() } catch (_: Exception) {}
+                }
             }
         }
 
@@ -283,7 +378,7 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 .build()
 
             val response = client.newCall(request).execute()
-            val text     = response.body?.string()
+            val text = response.body?.string()
             response.close()
             if (!response.isSuccessful || text == null) return false
             JSONObject(text).optBoolean("exists", false)
@@ -297,7 +392,8 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             .setContentTitle("SimpleSync – uploading")
             .setContentText(text)
             .setSubText(if (total > 0) "$done / $total" else null)
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setColor(0xFF3F86E8.toInt())
             .setContentIntent(openAppIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -314,7 +410,8 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         return NotificationCompat.Builder(applicationContext, App.CHANNEL_DONE)
             .setContentTitle("SimpleSync Companion")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setColor(0xFF3F86E8.toInt())
             .setContentIntent(openAppIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -325,16 +422,30 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         NotificationCompat.Builder(applicationContext, App.CHANNEL_DONE)
             .setContentTitle("SimpleSync – configuration error")
             .setContentText(msg)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setColor(0xFF3F86E8.toInt())
             .setContentIntent(openAppIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
     companion object {
+        private val httpClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.MINUTES)
+                .readTimeout(300, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .build()
+        }
+
+        const val LARGE_FILE_THRESHOLD = 100L * 1024 * 1024
         const val WORK_NAME         = "SimpleSyncCompanion_Upload"
         const val NOTIF_ID_PROGRESS = 1001
         const val NOTIF_ID_DONE     = 1002
+
+        fun cancelAll(context: Context) =
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
 
         fun enqueue(context: Context, replace: Boolean = false) {
             val req = OneTimeWorkRequestBuilder<UploadWorker>()
@@ -347,8 +458,6 @@ class UploadWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
                 .build()
 
-            // KEEP for normal enqueue (e.g. after scan finds new files).
-            // REPLACE when explicitly resuming so a fresh worker always starts immediately.
             val policy = if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
 
             WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, policy, req)

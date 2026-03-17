@@ -10,36 +10,34 @@ import android.provider.Settings
 import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.*
-import com.simplesync.companion.LoginActivity
 import com.simplesync.companion.data.prefs.Prefs
 import com.simplesync.companion.databinding.FragmentSettingsBinding
+import com.simplesync.companion.repository.SyncRepository
+import androidx.navigation.fragment.findNavController
+import com.simplesync.companion.R
 import com.simplesync.companion.worker.ScanWorker
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
-// ── ViewModel ─────────────────────────────────────────────────────────────────
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = Prefs.get(app)
-    val serverUrl: LiveData<String>  = prefs.serverUrl.asLiveData()
-    val apiKey:    LiveData<String>  = prefs.apiKey.asLiveData()
+    var savedScrollY: Int = 0
     val notifsOn:  LiveData<Boolean> = prefs.notifsOn.asLiveData()
     val appTheme:  LiveData<String>  = prefs.appTheme.asLiveData()
     fun setNotifs(on: Boolean) = viewModelScope.launch { prefs.setNotifsOn(on) }
     fun setTheme(t: String)    = viewModelScope.launch { prefs.setAppTheme(t) }
 }
 
-// ── Fragment ──────────────────────────────────────────────────────────────────
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private val vm: SettingsViewModel by viewModels()
     private val prefs by lazy { Prefs.get(requireContext()) }
+    private val repo  by lazy { SyncRepository.get(requireContext()) }
 
     override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(i, c, false)
@@ -47,41 +45,80 @@ class SettingsFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        vm.serverUrl.observe(viewLifecycleOwner) { url ->
-            binding.serverUrlDisplay.text = if (url.isNotEmpty()) url else "Not configured"
+        if (vm.savedScrollY > 0) {
+            binding.root.post {
+                binding.root.scrollTo(0, vm.savedScrollY)
+                vm.savedScrollY = 0
+            }
         }
-        // Observe apiKey to ensure LiveData is active and .value is available for testConnection()
-        vm.apiKey.observe(viewLifecycleOwner) { /* activates the LiveData */ }
 
         vm.notifsOn.observe(viewLifecycleOwner) { binding.notifsSwitch.isChecked = it }
         binding.notifsSwitch.setOnCheckedChangeListener { _, checked -> vm.setNotifs(checked) }
 
-        // ── Theme picker ──────────────────────────────────────────────────
         vm.appTheme.observe(viewLifecycleOwner) { updateThemeButtons(it) }
         binding.themeDarkBtn.setOnClickListener   { applyTheme("dark") }
         binding.themeSystemBtn.setOnClickListener { applyTheme("system") }
         binding.themeLightBtn.setOnClickListener  { applyTheme("light") }
 
-        binding.testConnectionBtn.setOnClickListener { testConnection() }
-
-        binding.changeServerBtn.setOnClickListener {
-            startActivity(
-                Intent(requireContext(), LoginActivity::class.java)
-                    .putExtra(LoginActivity.EXTRA_RECONFIGURING, true)
-            )
-        }
-
         binding.syncNowBtn.setOnClickListener {
             ScanWorker.runNow(requireContext())
             Toast.makeText(requireContext(), "Scan started…", Toast.LENGTH_SHORT).show()
+            findNavController().navigate(R.id.queueFragment)
         }
 
         binding.batteryBtn.setOnClickListener { openBatterySettings() }
+        binding.checkIntegrityBtn.setOnClickListener { checkIntegrityStatus() }
     }
 
     override fun onResume() {
         super.onResume()
         updateBatteryStatus()
+    }
+
+    private fun checkIntegrityStatus() {
+        binding.checkIntegrityBtn.isEnabled = false
+        binding.checkIntegrityBtn.text = "Checking…"
+        binding.integrityStatusText.isVisible = false
+
+        lifecycleScope.launch {
+            val flagSet = repo.checkIntegrityFlag()
+
+            if (!flagSet) {
+                showIntegrityResult(
+                    "✓ No changes detected — all server records are in sync.",
+                    isWarning = false
+                )
+            } else {
+                repo.clearAllTrackedFiles()
+                repo.acknowledgeIntegrityFlag()
+                ScanWorker.runNow(requireContext())
+
+                showIntegrityResult(
+                    "⚠ Server integrity changes detected. Local upload history cleared — scanning now. Files still on the server will be marked as Already on server; deleted files will be re-uploaded.",
+                    isWarning = true
+                )
+            }
+
+            binding.checkIntegrityBtn.isEnabled = true
+            binding.checkIntegrityBtn.text = "Check Integrity Status"
+        }
+    }
+
+    private fun showIntegrityResult(message: String, isWarning: Boolean) {
+        binding.integrityStatusText.text = message
+        binding.integrityStatusText.setTextColor(
+            if (isWarning)
+                com.google.android.material.color.MaterialColors.getColor(
+                    binding.integrityStatusText,
+                    com.google.android.material.R.attr.colorError
+                )
+            else
+                com.google.android.material.color.MaterialColors.getColor(
+                    binding.integrityStatusText,
+                    com.google.android.material.R.attr.colorOnSurfaceVariant
+                )
+        )
+        binding.integrityStatusText.isVisible = true
     }
 
     private fun updateBatteryStatus() {
@@ -90,7 +127,7 @@ class SettingsFragment : Fragment() {
             binding.batteryBtn.isEnabled = false
             return
         }
-        val pm     = requireContext().getSystemService(PowerManager::class.java)
+        val pm = requireContext().getSystemService(PowerManager::class.java)
         val exempt = pm.isIgnoringBatteryOptimizations(requireContext().packageName)
         binding.batteryStatusText.text = if (exempt)
             "✓ Battery optimisation is disabled – background uploads will work reliably"
@@ -102,7 +139,7 @@ class SettingsFragment : Fragment() {
     private fun openBatterySettings() {
         val ctx = requireContext()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val pm     = ctx.getSystemService(PowerManager::class.java)
+            val pm = ctx.getSystemService(PowerManager::class.java)
             val exempt = pm.isIgnoringBatteryOptimizations(ctx.packageName)
             if (!exempt) {
                 startActivity(
@@ -122,60 +159,6 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    private fun testConnection() {
-        val url = vm.serverUrl.value?.trimEnd('/') ?: ""
-        val key = vm.apiKey.value ?: ""
-        if (url.isEmpty()) {
-            Toast.makeText(requireContext(), "No server configured. Tap Change Server.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        binding.testConnectionBtn.isEnabled = false
-        binding.testConnectionBtn.text = "Testing…"
-
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .build()
-            val (ok, msg) = try {
-                val ping = client.newCall(Request.Builder().url("$url/api/ping").build()).execute()
-                ping.close()
-                if (!ping.isSuccessful) throw Exception("Server unreachable (HTTP ${ping.code})")
-                val auth = client.newCall(
-                    Request.Builder().url("$url/api/folders")
-                        .header("x-api-key", key).build()
-                ).execute()
-                val code = auth.code; auth.close()
-                when (code) {
-                    200  -> {
-                        // Refresh direct upload URL from server config
-                        try {
-                            val cfg = client.newCall(
-                                Request.Builder().url("$url/api/config")
-                                    .header("x-api-key", key).build()
-                            ).execute()
-                            val body = cfg.body?.string(); cfg.close()
-                            if (cfg.isSuccessful && body != null) {
-                                val directUrl = org.json.JSONObject(body).optString("local_url", "")
-                                prefs.setDirectUrl(directUrl)
-                            }
-                        } catch (_: Exception) {}
-                        true  to "✓ Connected successfully!"
-                    }
-                    401  -> false to "✗ API key rejected"
-                    else -> false to "✗ HTTP $code"
-                }
-            } catch (e: Exception) { false to "✗ ${e.message}" }
-
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
-                binding.testConnectionBtn.isEnabled = true
-                binding.testConnectionBtn.text = "Test Connection"
-            }
-        }
-    }
-
-    // ── Theme helpers ─────────────────────────────────────────────────────────
     private fun applyTheme(theme: String) {
         vm.setTheme(theme)
         val mode = when (theme) {
@@ -184,6 +167,7 @@ class SettingsFragment : Fragment() {
             else     -> AppCompatDelegate.MODE_NIGHT_YES
         }
         AppCompatDelegate.setDefaultNightMode(mode)
+        vm.savedScrollY = binding.root.scrollY
         requireActivity().recreate()
     }
 

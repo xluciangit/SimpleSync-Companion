@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:padding="16dp">
 
         <!-- Row 1: filename + status badge -->
         <LinearLayout
@@ -42,6 +42,29 @@
                 android:background="@drawable/status_pill_bg"
                 android:layout_marginStart="10dp" />
         </LinearLayout>
+
+        <!-- File path -->
+        <TextView
+            android:id="@+id/file_path"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="start"
+            android:layout_marginTop="3dp" />
+
+        <!-- Upload note: URL used or large-file waiting status -->
+        <TextView
+            android:id="@+id/upload_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="2dp"
+            android:visibility="gone" />
 
         <!-- Progress row — only while UPLOADING -->
         <LinearLayout
@@ -86,7 +109,7 @@
                 android:layout_height="4dp"
                 android:max="100"
                 android:progress="0"
-                android:progressTint="?attr/colorOnSurface"
+                android:progressTint="@color/brand_blue_main"
                 android:progressBackgroundTint="?attr/colorOutlineVariant" />
         </LinearLayout>
 

@@ -11,6 +11,7 @@ import com.simplesync.companion.MainActivity
 import com.simplesync.companion.repository.SyncRepository
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+import com.simplesync.companion.R
 
 class ScanWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
@@ -24,7 +25,8 @@ class ScanWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         val notif = NotificationCompat.Builder(applicationContext, App.CHANNEL_UPLOAD)
             .setContentTitle("SimpleSync Companion")
             .setContentText("Scanning for new files…")
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setColor(0xFF3F86E8.toInt())
             .setContentIntent(openIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -39,23 +41,32 @@ class ScanWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     }
 
     override suspend fun doWork(): Result {
-        setForeground(getForegroundInfo())
+        try { setForeground(getForegroundInfo()) } catch (_: Exception) {}
 
-        val repo    = SyncRepository.get(applicationContext)
-        val nm      = applicationContext.getSystemService(NotificationManager::class.java)
+        val repo = SyncRepository.get(applicationContext)
+        val nm = applicationContext.getSystemService(NotificationManager::class.java)
         val configs = repo.foldersFlow.first().filter { it.isActive }
 
         var totalQueued = 0
+
         for (cfg in configs) {
             try {
+                if (cfg.lastScanAt > 0) {
+                    val validation = repo.validateFolderOnServer(cfg)
+                    if (!validation.isValid) {
+                        repo.deleteFolder(cfg)
+                        continue
+                    }
+                }
                 totalQueued += repo.scanAndQueue(cfg)
+
             } catch (_: Exception) {}
         }
 
         nm.cancel(NOTIF_ID_SCAN)
 
         if (totalQueued > 0) {
-            UploadWorker.enqueue(applicationContext)
+            UploadWorker.enqueue(applicationContext, replace = true)
         }
 
         return Result.success()
@@ -65,11 +76,10 @@ class ScanWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         const val WORK_NAME     = "SimpleSyncCompanion_Scan"
         const val NOTIF_ID_SCAN = 1003
 
-        /** Schedule periodic scanning. */
         fun schedule(context: Context, intervalMinutes: Int) {
             val req = PeriodicWorkRequestBuilder<ScanWorker>(
                 intervalMinutes.toLong().coerceAtLeast(15), TimeUnit.MINUTES
-            ).build()   // no network constraint, no setExpedited
+            ).build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
@@ -81,11 +91,10 @@ class ScanWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         fun cancel(context: Context) =
             WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
 
-        /** One-shot immediate scan. */
         fun runNow(context: Context) {
             val req = OneTimeWorkRequestBuilder<ScanWorker>()
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                .build()   // no network constraint for scan
+                .build()
 
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "${WORK_NAME}_now",

@@ -8,7 +8,6 @@ import com.simplesync.companion.data.db.UploadJob
 import com.simplesync.companion.repository.SyncRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class QueueViewModel(app: Application) : AndroidViewModel(app) {
@@ -23,9 +22,8 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
     val filteredJobs: LiveData<List<UploadJob>> = MediatorLiveData<List<UploadJob>>().apply {
         fun update() {
             val jobs = allJobs.value ?: return
-            val f    = _filter.value  ?: FilterType.ALL
+            val f = _filter.value ?: FilterType.ALL
             fun List<UploadJob>.sorted() = sortedWith(compareBy(
-                // UPLOADING first, then PENDING, then FAILED, then CANCELLED, then COMPLETED
                 {
                     when (it.status) {
                         JobStatus.UPLOADING -> 0
@@ -33,14 +31,19 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
                         JobStatus.FAILED    -> 2
                         JobStatus.CANCELLED -> 3
                         JobStatus.COMPLETED -> 4
+                        JobStatus.SKIPPED   -> 4
                     }
                 },
-                { it.createdAt }  // within same status: oldest first
+                { it.createdAt }
             ))
             value = when (f) {
                 FilterType.ALL       -> jobs.sorted()
-                FilterType.PENDING   -> jobs.filter { it.status == JobStatus.PENDING || it.status == JobStatus.UPLOADING }.sorted()
-                FilterType.COMPLETED -> jobs.filter { it.status == JobStatus.COMPLETED }.sorted()
+                FilterType.PENDING   -> jobs.filter {
+                    it.status == JobStatus.PENDING || it.status == JobStatus.UPLOADING
+                }.sorted()
+                FilterType.COMPLETED -> jobs.filter {
+                    it.status == JobStatus.COMPLETED || it.status == JobStatus.SKIPPED
+                }.sorted()
                 FilterType.FAILED    -> jobs.filter { it.status == JobStatus.FAILED }.sorted()
                 FilterType.CANCELLED -> jobs.filter { it.status == JobStatus.CANCELLED }.sorted()
             }
@@ -51,26 +54,25 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
 
     val pendingCount: LiveData<Int> = repo.pendingCountFlow.asLiveData()
 
-    // Auto-clear completed jobs 60 seconds after they finish.
-    // Runs whenever the job list changes — finds newly-completed jobs
-    // whose completedAt is set, waits the remainder of the 60s, then clears.
-    private val scheduledClears = mutableSetOf<Long>()  // job IDs already scheduled
+    private val scheduledClears = mutableSetOf<Long>()
 
     init {
         viewModelScope.launch {
             repo.allJobsFlow.collect { jobs ->
                 val now = System.currentTimeMillis()
-                jobs.filter { it.status == JobStatus.COMPLETED && it.completedAt != null }
-                    .forEach { job ->
-                        if (scheduledClears.add(job.id)) {
-                            val delay = (60_000L - (now - job.completedAt!!)).coerceAtLeast(0L)
-                            launch {
-                                delay(delay)
-                                repo.clearSingleCompleted(job.id)
-                                scheduledClears.remove(job.id)
-                            }
+                jobs.filter {
+                    (it.status == JobStatus.COMPLETED || it.status == JobStatus.SKIPPED)
+                        && it.completedAt != null
+                }.forEach { job ->
+                    if (scheduledClears.add(job.id)) {
+                        val delay = (600_000L - (now - job.completedAt!!)).coerceAtLeast(0L)
+                        launch {
+                            delay(delay)
+                            repo.clearSingleCompleted(job.id)
+                            scheduledClears.remove(job.id)
                         }
                     }
+                }
             }
         }
     }
@@ -81,13 +83,11 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
 
     fun pauseUploads() = viewModelScope.launch {
         repo.prefs.setUploadsPaused(true)
-        // Reset any currently UPLOADING job back to PENDING so it retries on resume
         repo.resetStuckUploading()
     }
 
     fun resumeUploads(context: android.content.Context) = viewModelScope.launch {
         repo.prefs.setUploadsPaused(false)
-        // replace=true: discard any lingering worker so a fresh one starts immediately
         com.simplesync.companion.worker.UploadWorker.enqueue(context, replace = true)
     }
 

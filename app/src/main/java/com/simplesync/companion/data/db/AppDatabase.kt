@@ -7,7 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [FolderConfig::class, TrackedFile::class, UploadJob::class],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -19,19 +19,31 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        // Migration 1 → 2: add sha256Hash column to tracked_files
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE tracked_files ADD COLUMN sha256Hash TEXT")
             }
         }
 
-        // Migration 2 → 3: add uploadHiddenFiles to folder_configs,
-        //                   add uploadSpeedBps to upload_jobs
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE folder_configs ADD COLUMN uploadHiddenFiles INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE upload_jobs ADD COLUMN uploadSpeedBps INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE upload_jobs ADD COLUMN uploadNote TEXT")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_folder_configs_remoteFolderName " +
+                    "ON folder_configs(remoteFolderName)"
+                )
             }
         }
 
@@ -42,7 +54,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "simplesynccompanion.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 .also { INSTANCE = it }
             }

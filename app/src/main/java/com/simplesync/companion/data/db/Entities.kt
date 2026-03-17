@@ -2,9 +2,10 @@ package com.simplesync.companion.data.db
 
 import androidx.room.*
 
-// ── FolderConfig ──────────────────────────────────────────────────────────────
-
-@Entity(tableName = "folder_configs")
+@Entity(
+    tableName = "folder_configs",
+    indices = [Index(value = ["remoteFolderName"], unique = true)]
+)
 data class FolderConfig(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val displayName: String,
@@ -13,10 +14,8 @@ data class FolderConfig(
     val scanIntervalMinutes: Int = 60,
     val lastScanAt: Long = 0,
     val isActive: Boolean = true,
-    val uploadHiddenFiles: Boolean = false   // v3: include dotfiles/dotfolders
+    val uploadHiddenFiles: Boolean = false
 )
-
-// ── TrackedFile ───────────────────────────────────────────────────────────────
 
 @Entity(
     tableName = "tracked_files",
@@ -32,9 +31,15 @@ data class TrackedFile(
     val uploadedAt: Long = System.currentTimeMillis()
 )
 
-// ── UploadJob ─────────────────────────────────────────────────────────────────
-
-enum class JobStatus { PENDING, UPLOADING, COMPLETED, FAILED, CANCELLED }
+enum class JobStatus {
+    PENDING,
+    UPLOADING,
+    COMPLETED,
+    
+    SKIPPED,
+    FAILED,
+    CANCELLED
+}
 
 @Entity(tableName = "upload_jobs")
 data class UploadJob(
@@ -50,6 +55,7 @@ data class UploadJob(
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
     val progressBytes: Long = 0,
-    // v3: live upload speed in bytes/sec, updated during upload; 0 when not uploading
-    val uploadSpeedBps: Long = 0
+    val uploadSpeedBps: Long = 0,
+    
+    val uploadNote: String? = null
 )
