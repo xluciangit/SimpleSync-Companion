@@ -24,40 +24,6 @@ Android companion app for [SimpleSync Server](https://github.com/xluciangit/Simp
 
 ---
 
-## What changed in 1.2.2
-
-- App now fetches the server's upload size limit on each upload run
-- Files exceeding the limit are marked as failed with a note instead of attempting the upload
-- Oversized files are automatically re-queued when the next scan runs, in case the limit was raised
-
----
-
-## What changed in 1.2.1
-
-- 150ms delay between file uploads — prevents rate limit triggers and IP bans when uploading large folders on fast home Wi-Fi
-- Fixed: app could close when adding the first folder
-- Fixed: upload queue not starting automatically after adding a large folder (third folder onward)
-- Connection tab now refreshes the server URL immediately after changing server
-
----
-
-## What changed in 1.2.0
-
-The UI got a full redesign — new sidebar navigation, custom icons, and a darker theme. Under the hood the main change is API key hashing: keys are now stored as SHA-256 hashes instead of plain text. Existing keys keep working, nothing to change on the server side.
-
-Other changes:
-- Connection settings moved to their own tab in the sidebar
-- Folders shown as cards in a 2-column grid, each with an Active/Inactive toggle
-- Large files over 100 MB now check if the direct URL is reachable before copying and hashing — if you're away from home, the job is set to pending immediately so smaller files can upload without waiting
-- Failed uploads are retried once automatically after all other pending jobs finish — only marked permanently failed if it fails again, manual retry is then required
-- Changing the server URL or API key asks for confirmation and clears all local folders and queue so they don't sync to the wrong account
-- Direct Upload URL is refreshed from the server at the start of every upload run — no need to reconnect after changing the LAN IP in admin settings
-- Can't accidentally add two folders pointing to the same server folder
-- Completed and skipped jobs auto-clear after 10 minutes
-- Write timeout capped at 30 minutes (was unlimited)
-
----
-
 ## Features
 
 - Background sync via WorkManager — runs on a schedule even when the app is closed

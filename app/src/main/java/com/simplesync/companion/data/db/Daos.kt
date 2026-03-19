@@ -8,12 +8,6 @@ interface FolderConfigDao {
     @Query("SELECT * FROM folder_configs ORDER BY id ASC")
     fun getAllFlow(): Flow<List<FolderConfig>>
 
-    @Query("SELECT * FROM folder_configs ORDER BY id ASC")
-    suspend fun getAll(): List<FolderConfig>
-
-    @Query("SELECT * FROM folder_configs WHERE isActive = 1 ORDER BY id ASC")
-    suspend fun getActive(): List<FolderConfig>
-
     @Query("SELECT * FROM folder_configs WHERE id = :id")
     suspend fun getById(id: Long): FolderConfig?
 
@@ -92,16 +86,13 @@ interface UploadJobDao {
     @Query("DELETE FROM upload_jobs WHERE status = 'CANCELLED'")
     suspend fun clearCancelled()
 
-    @Query("UPDATE upload_jobs SET status = 'CANCELLED' WHERE status = 'PENDING'")
-    suspend fun cancelAllPending()
-
     @Query("DELETE FROM upload_jobs")
     suspend fun deleteAllJobs()
 
     @Query("DELETE FROM upload_jobs WHERE folderConfigId = :cfgId")
     suspend fun deleteForConfig(cfgId: Long)
 
-    @Query("UPDATE upload_jobs SET status = 'PENDING', errorMessage = NULL WHERE status = 'UPLOADING'")
+    @Query("UPDATE upload_jobs SET status = 'PENDING', errorMessage = NULL WHERE status = 'UPLOADING' OR status = 'HASHING'")
     suspend fun resetStuckUploading()
 
     @Query("UPDATE upload_jobs SET status = 'PENDING', errorMessage = NULL WHERE folderConfigId = :cfgId AND status = 'FAILED' AND errorMessage LIKE '%File too big%'")

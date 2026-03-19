@@ -68,6 +68,9 @@ class SettingsFragment : Fragment() {
 
         binding.batteryBtn.setOnClickListener { openBatterySettings() }
         binding.checkIntegrityBtn.setOnClickListener { checkIntegrityStatus() }
+
+        val pInfo = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0)
+        binding.versionText.text = "SimpleSync Companion v${pInfo.versionName}"
     }
 
     override fun onResume() {

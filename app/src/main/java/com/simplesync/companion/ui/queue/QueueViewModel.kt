@@ -16,36 +16,32 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
 
     val allJobs: LiveData<List<UploadJob>> = repo.allJobsFlow.asLiveData()
 
-    private val _filter = MutableLiveData(FilterType.ALL)
+    private val _filter = MutableLiveData(FilterType.UPLOADING)
     val filter: LiveData<FilterType> get() = _filter
 
     val filteredJobs: LiveData<List<UploadJob>> = MediatorLiveData<List<UploadJob>>().apply {
         fun update() {
             val jobs = allJobs.value ?: return
-            val f = _filter.value ?: FilterType.ALL
-            fun List<UploadJob>.sorted() = sortedWith(compareBy(
-                {
-                    when (it.status) {
-                        JobStatus.UPLOADING -> 0
-                        JobStatus.PENDING   -> 1
-                        JobStatus.FAILED    -> 2
-                        JobStatus.CANCELLED -> 3
-                        JobStatus.COMPLETED -> 4
-                        JobStatus.SKIPPED   -> 4
-                    }
-                },
-                { it.createdAt }
-            ))
+            val f = _filter.value ?: FilterType.UPLOADING
             value = when (f) {
-                FilterType.ALL       -> jobs.sorted()
-                FilterType.PENDING   -> jobs.filter {
-                    it.status == JobStatus.PENDING || it.status == JobStatus.UPLOADING
-                }.sorted()
+                FilterType.UPLOADING -> jobs.filter {
+                    it.status == JobStatus.HASHING || it.status == JobStatus.UPLOADING || it.status == JobStatus.PENDING
+                }.sortedWith(compareBy(
+                    {
+                        when (it.status) {
+                            JobStatus.HASHING   -> 0
+                            JobStatus.UPLOADING -> 1
+                            JobStatus.PENDING   -> 2
+                            else                -> 3
+                        }
+                    },
+                    { it.createdAt }
+                ))
                 FilterType.COMPLETED -> jobs.filter {
                     it.status == JobStatus.COMPLETED || it.status == JobStatus.SKIPPED
-                }.sorted()
-                FilterType.FAILED    -> jobs.filter { it.status == JobStatus.FAILED }.sorted()
-                FilterType.CANCELLED -> jobs.filter { it.status == JobStatus.CANCELLED }.sorted()
+                }.sortedByDescending { it.completedAt }
+                FilterType.FAILED    -> jobs.filter { it.status == JobStatus.FAILED }.sortedByDescending { it.createdAt }
+                FilterType.CANCELLED -> jobs.filter { it.status == JobStatus.CANCELLED }.sortedByDescending { it.createdAt }
             }
         }
         addSource(allJobs)  { update() }
@@ -98,4 +94,4 @@ class QueueViewModel(app: Application) : AndroidViewModel(app) {
     fun clearCancelled()    = viewModelScope.launch { repo.clearCancelled() }
 }
 
-enum class FilterType { ALL, PENDING, COMPLETED, FAILED, CANCELLED }
+enum class FilterType { UPLOADING, COMPLETED, FAILED, CANCELLED }

@@ -39,11 +39,10 @@ class QueueFragment : Fragment() {
         }
 
         val chipMap = mapOf(
-            FilterType.ALL       to binding.chipAll,
-            FilterType.PENDING   to binding.chipPending,
-            FilterType.COMPLETED to binding.chipCompleted,
-            FilterType.FAILED    to binding.chipFailed,
-            FilterType.CANCELLED to binding.chipCancelled
+            FilterType.UPLOADING  to binding.chipUploading,
+            FilterType.COMPLETED  to binding.chipCompleted,
+            FilterType.FAILED     to binding.chipFailed,
+            FilterType.CANCELLED  to binding.chipCancelled
         )
         chipMap.forEach { (f, chip) ->
             chip.setOnClickListener { vm.setFilter(f) }
@@ -55,16 +54,6 @@ class QueueFragment : Fragment() {
 
         vm.filteredJobs.observe(viewLifecycleOwner) { jobs ->
             adapter.submitList(jobs) {
-                val uploadingIdx = jobs.indexOfFirst { it.status == JobStatus.UPLOADING }
-                val targetIdx = when {
-                    uploadingIdx >= 0                                          -> uploadingIdx
-                    jobs.indexOfFirst { it.status == JobStatus.PENDING } >= 0 ->
-                        jobs.indexOfFirst { it.status == JobStatus.PENDING }
-                    else                                                       -> -1
-                }
-                if (targetIdx >= 0) {
-                    binding.recyclerView.scrollToPosition(targetIdx)
-                }
                 binding.emptyText.isVisible = jobs.isEmpty()
             }
         }
@@ -124,6 +113,7 @@ class JobAdapter(
         data class StatusStyle(val label: String, val textHex: Int, val bgHex: Int)
         val style = when (job.status) {
             JobStatus.PENDING   -> StatusStyle("Pending",          0xFF6B7280.toInt(), 0xFFF3F4F6.toInt())
+            JobStatus.HASHING   -> StatusStyle("Hashing",          0xFF0E7490.toInt(), 0xFFECFEFF.toInt())
             JobStatus.UPLOADING -> StatusStyle("Uploading",        0xFF2563EB.toInt(), 0xFFEFF6FF.toInt())
             JobStatus.COMPLETED -> StatusStyle("Completed",        0xFF16A34A.toInt(), 0xFFDCFCE7.toInt())
             JobStatus.SKIPPED   -> StatusStyle("Already on server",0xFF7C3AED.toInt(), 0xFFEDE9FE.toInt())
@@ -135,7 +125,7 @@ class JobAdapter(
         (b.status.background as? android.graphics.drawable.GradientDrawable)
             ?.setColor(style.bgHex)
 
-        b.uploadProgressRow.isVisible = job.status == JobStatus.UPLOADING
+        b.uploadProgressRow.isVisible = job.status == JobStatus.UPLOADING || job.status == JobStatus.HASHING
         bindProgress(b, job)
 
         b.errorMessage.isVisible = job.errorMessage != null
@@ -159,13 +149,14 @@ class JobAdapter(
     }
 
     private fun bindProgress(b: ItemUploadJobBinding, job: UploadJob) {
-        if (job.status != JobStatus.UPLOADING) return
+        if (job.status != JobStatus.UPLOADING && job.status != JobStatus.HASHING) return
         val pct = if (job.fileSize > 0)
             ((job.progressBytes.toFloat() / job.fileSize) * 100).toInt().coerceIn(0, 100)
         else 0
         b.uploadProgressBar.progress = pct
-        b.uploadPct.text  = "$pct%"
-        b.uploadSpeed.text = if (job.uploadSpeedBps > 0) " · ${fmtSpeed(job.uploadSpeedBps)}" else ""
+        b.uploadPct.text   = "$pct%"
+        b.uploadSpeed.text = if (job.status == JobStatus.UPLOADING && job.uploadSpeedBps > 0)
+            " · ${fmtSpeed(job.uploadSpeedBps)}" else ""
     }
 
     companion object {
@@ -176,8 +167,8 @@ class JobAdapter(
             override fun areContentsTheSame(a: UploadJob, b: UploadJob) = a == b
 
             override fun getChangePayload(oldItem: UploadJob, newItem: UploadJob): Any? {
-                if (oldItem.status == JobStatus.UPLOADING &&
-                    newItem.status == JobStatus.UPLOADING &&
+                val activeStatus = newItem.status == JobStatus.UPLOADING || newItem.status == JobStatus.HASHING
+                if (activeStatus && oldItem.status == newItem.status &&
                     oldItem.progressBytes != newItem.progressBytes
                 ) return PAYLOAD_PROGRESS
                 return null

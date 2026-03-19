@@ -38,7 +38,6 @@ class SyncRepository(private val context: Context) {
         trkDao.deleteForConfig(cfg.id)
         jobDao.deleteForConfig(cfg.id)
     }
-    suspend fun getFolder(id: Long) = cfgDao.getById(id)
     val allJobsFlow: Flow<List<UploadJob>> = jobDao.getAllFlow()
     val pendingCountFlow: Flow<Int>        = jobDao.pendingCountFlow()
 

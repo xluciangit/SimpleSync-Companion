@@ -33,9 +33,9 @@ data class TrackedFile(
 
 enum class JobStatus {
     PENDING,
+    HASHING,
     UPLOADING,
     COMPLETED,
-    
     SKIPPED,
     FAILED,
     CANCELLED
