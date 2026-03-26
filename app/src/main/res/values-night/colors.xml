@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme — based on deep charcoal palette -->
+
+    <!-- Primary blue — matches the Continue button / selection dot -->
+    <color name="md_theme_primary">#4A6CF7</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#1E2952</color>
+    <color name="md_theme_onPrimaryContainer">#A8B8FF</color>
+
+    <!-- Secondary -->
+    <color name="md_theme_secondary">#8A8A9A</color>
+    <color name="md_theme_onSecondary">#1A1A1F</color>
+    <color name="md_theme_secondaryContainer">#26262E</color>
+    <color name="md_theme_onSecondaryContainer">#D0D0E0</color>
+
+    <!-- Surface: card background — dark charcoal #222228 -->
+    <color name="md_theme_surface">#222228</color>
+    <color name="md_theme_onSurface">#FFFFFF</color>
+
+    <!-- Surface variant: input field backgrounds, inner containers -->
+    <color name="md_theme_surfaceVariant">#2A2A32</color>
+    <color name="md_theme_onSurfaceVariant">#8A8A9A</color>
+
+    <!-- Background: page/screen background — near-black #16161C -->
+    <color name="md_theme_background">#16161C</color>
+    <color name="md_theme_onBackground">#FFFFFF</color>
+
+    <!-- Borders: very subtle, nearly invisible -->
+    <color name="md_theme_outline">#32323C</color>
+    <color name="md_theme_outlineVariant">#28282F</color>
+
+    <!-- Error -->
+    <color name="md_theme_error">#FF6B6B</color>
+    <color name="md_theme_onError">#1A0000</color>
+    <color name="md_theme_errorContainer">#3B1212</color>
+
+    <!-- Status colours -->
+    <color name="color_uploading">#4A6CF7</color>
+    <color name="color_success">#4ADE80</color>
+    <color name="color_warning">#FBBF24</color>
+
+    <!-- Sidebar -->
+    <color name="sidebar_bg">#1E1E24</color>
+    <color name="sidebar_active_bg">#2A2A3A</color>
+    <color name="sidebar_icon_active">#4A6CF7</color>
+    <color name="sidebar_icon_inactive">#44444E</color>
+    <color name="header_bg">#1E1E24</color>
+
+    <!-- Brand palette (kept for FAB etc.) -->
+    <color name="brand_blue_main">#4A6CF7</color>
+    <color name="brand_blue_dark">#3558E8</color>
+</resources>

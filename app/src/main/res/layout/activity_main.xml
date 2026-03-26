@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="?attr/colorSurface">
+
+    <!-- Sidebar -->
+    <LinearLayout
+        android:id="@+id/sidebar"
+        android:layout_width="56dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:paddingHorizontal="6dp"
+        android:gravity="center_horizontal"
+        android:background="?attr/colorSurface">
+
+        <ImageView
+            android:id="@+id/sidebarLogo"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_app_logo"
+            android:scaleType="fitCenter"
+            android:layout_marginBottom="14dp"
+            android:contentDescription="SimpleSync" />
+
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginBottom="4dp">
+            <View android:id="@+id/indicator_connection" android:layout_width="3dp" android:layout_height="24dp" android:layout_gravity="start|center_vertical" android:background="@drawable/nav_active_indicator" android:visibility="gone" />
+            <ImageView android:id="@+id/nav_connection" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_nav_connection" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:contentDescription="Connection" android:clickable="true" android:focusable="true" android:tint="@null" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginBottom="4dp">
+            <View android:id="@+id/indicator_queue" android:layout_width="3dp" android:layout_height="24dp" android:layout_gravity="start|center_vertical" android:background="@drawable/nav_active_indicator" android:visibility="gone" />
+            <ImageView android:id="@+id/nav_queue" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_nav_queue" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:contentDescription="Queue" android:clickable="true" android:focusable="true" android:tint="@null" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginBottom="4dp">
+            <View android:id="@+id/indicator_folders" android:layout_width="3dp" android:layout_height="24dp" android:layout_gravity="start|center_vertical" android:background="@drawable/nav_active_indicator" android:visibility="gone" />
+            <ImageView android:id="@+id/nav_folders" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_nav_folders" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:contentDescription="Folders" android:clickable="true" android:focusable="true" android:tint="@null" />
+        </FrameLayout>
+
+        <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+
+        <!-- Notifications toggle -->
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginBottom="4dp">
+            <ImageView android:id="@+id/sidebarNotifToggle" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/notification_enabled" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:clickable="true" android:focusable="true" android:contentDescription="Toggle notifications" android:tint="@null" />
+        </FrameLayout>
+
+        <!-- Theme toggle -->
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:layout_marginBottom="4dp">
+            <ImageView android:id="@+id/sidebarThemeToggle" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/blue_moon" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:clickable="true" android:focusable="true" android:contentDescription="Toggle theme" android:tint="@null" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="44dp" android:layout_height="44dp">
+            <View android:id="@+id/indicator_settings" android:layout_width="3dp" android:layout_height="24dp" android:layout_gravity="start|center_vertical" android:background="@drawable/nav_active_indicator" android:visibility="gone" />
+            <ImageView android:id="@+id/nav_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/ic_nav_settings" android:scaleType="fitCenter" android:padding="10dp" android:background="@drawable/nav_btn_bg" android:contentDescription="Settings" android:clickable="true" android:focusable="true" android:tint="@null" />
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Content area: header + fragment + bottom bar -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:background="?attr/colorSurface">
+
+        <!-- Top header strip -->
+        <LinearLayout
+            android:id="@+id/page_header"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp"
+            android:background="?attr/colorSurface">
+
+            <TextView
+                android:id="@+id/page_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Queue"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:letterSpacing="-0.01" />
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/content_column"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/content_bg"
+            android:clipToOutline="true">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/nav_host_fragment"
+                android:name="androidx.navigation.fragment.NavHostFragment"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:defaultNavHost="true"
+                app:navGraph="@navigation/nav_graph" />
+
+        </FrameLayout>
+
+        <!-- Bottom bar — half height of top bar, version aligned right -->
+        <LinearLayout
+            android:id="@+id/bottom_bar"
+            android:layout_width="match_parent"
+            android:layout_height="23dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical|end"
+            android:paddingHorizontal="16dp"
+            android:background="@drawable/bottom_bar_bg"
+            android:clipToOutline="true">
+
+            <TextView
+                android:id="@+id/bottomBarVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:alpha="0.6" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_nav"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:menu="@menu/bottom_nav_menu" />
+
+</LinearLayout>
